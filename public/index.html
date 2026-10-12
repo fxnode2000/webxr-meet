@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meet</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="importmap">
+    { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+  </script>
+</head>
+<body>
+  <div id="stage"></div>
+
+  <main id="lobby" class="card">
+    <h1 id="lobbyTitle">Create a room</h1>
+    <p id="lobbyInfo" class="dim"></p>
+
+    <label for="name">Your name</label>
+    <input id="name" maxlength="24" autocomplete="nickname" placeholder="e.g. Andrew">
+
+    <div id="createOpts">
+      <label class="check"><input type="checkbox" id="usePin"> Protect the room with a 4-digit PIN</label>
+      <input id="pin" inputmode="numeric" maxlength="4" placeholder="4 digits" hidden>
+    </div>
+
+    <div id="joinPinWrap" hidden>
+      <label for="joinPin">Room PIN</label>
+      <input id="joinPin" inputmode="numeric" maxlength="4" placeholder="4 digits">
+    </div>
+
+    <button id="go" class="primary">Create room</button>
+    <p id="lobbyErr" class="err" role="alert"></p>
+    <p class="dim small">You will be asked to allow your microphone. Headphones are recommended on a desktop.</p>
+  </main>
+
+  <div id="hud" hidden>
+    <header class="bar">
+      <div class="room">Room <strong id="roomCode"></strong> <span id="pinBadge" class="badge" hidden>PIN</span></div>
+      <input id="inviteLink" readonly aria-label="Invite link">
+      <button id="copyLink">Copy link</button>
+      <button id="muteBtn" class="toggle">Mic on (M)</button>
+      <button id="vrBtn" class="primary" hidden>Enter VR</button>
+    </header>
+
+    <section id="people" class="people"></section>
+
+    <details id="settings" class="settings">
+      <summary>Audio settings</summary>
+      <label>Microphone <select id="micSel"></select></label>
+      <label>Scene brightness <input id="bright" type="range" min="0.4" max="2" step="0.05"></label>
+      <label>Master volume<input type="range" data-key="master" min="0" max="2" step="0.05"><output></output></label>
+      <label class="check"><input type="checkbox" data-key="spatial"> Spatial (HRTF) audio</label>
+      <label>Distance falloff <input type="range" data-key="rolloff" min="0" max="3" step="0.1"><output></output></label>
+      <label>Full-volume radius (m) <input type="range" data-key="refDistance" min="0.5" max="6" step="0.1"><output></output></label>
+      <label>Room reverb <input type="range" data-key="reverb" min="0" max="1" step="0.05"><output></output></label>
+      <label>Voice directivity <input type="range" data-key="directivity" min="0" max="1" step="0.05"><output></output></label>
+    </details>
+
+    <div id="hint" class="hint">Click the scene to look around · WASD to move · Q/E to turn · M to mute</div>
+    <div id="banner" class="banner" hidden></div>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

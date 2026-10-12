@@ -1,0 +1,20 @@
+{
+  "name": "webxr-meet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Three-person WebXR meeting room with spatial voice (MVP)",
+  "scripts": {
+    "start": "node server.js",
+    "start:http": "node server.js --http",
+    "test": "node test/signalling.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "selfsigned": "^5.5.0",
+    "three": "^0.186.1",
+    "ws": "^8.22.0"
+  }
+}
