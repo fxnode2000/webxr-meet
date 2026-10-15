@@ -1,0 +1,12 @@
+# Render.com blueprint for ADF-meet. Use it from a NEW, separate GitHub repo (never the repo that deploys the live site).
+services:
+  - type: web
+    name: adf-meet
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev && node tools/fetch-ejs.mjs
+    startCommand: node server.js --http
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

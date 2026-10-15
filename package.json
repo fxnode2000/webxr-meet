@@ -7,7 +7,14 @@
   "scripts": {
     "start": "node server.js",
     "start:http": "node server.js --http",
-    "test": "node test/signalling.test.js"
+    "profile": "node server.js --profile",
+    "profile:http": "node server.js --http --profile",
+    "summary": "node tools/summarise-log.mjs",
+    "test": "node test/signalling.test.js && node test/rejoin.test.js && node test/avatar.test.mjs && node test/sdp.test.mjs && node test/controls.test.mjs && node test/arcade-controls.test.mjs",
+    "test:e2e": "node test/screen.e2e.mjs && node test/emu-host.e2e.mjs && node test/amiga-session.e2e.mjs && node test/arcade-session.e2e.mjs",
+    "emu:build": "node tools/build-copperline.mjs",
+    "emu:check": "node tools/check-copperline.mjs",
+    "emu:fetch-arcade": "node tools/fetch-ejs.mjs"
   },
   "engines": {
     "node": ">=18"

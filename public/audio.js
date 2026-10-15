@@ -36,7 +36,7 @@ export class SpatialAudio {
     this.ctx = null;
     this.peers = new Map();
     this.local = null;
-    this.s = { master: 1, spatial: true, rolloff: 1, refDistance: 2, reverb: 0.15, directivity: 0.35 };
+    this.s = { master: 1, spatial: true, rolloff: 1, refDistance: 2, reverb: 0.15, directivity: 0.35, screen: 0.6 };
   }
 
   /** Must be called from a user gesture (click) so the browser lets audio start. */
@@ -115,6 +115,7 @@ export class SpatialAudio {
     if (!this.ctx) return;
     this.master.gain.setTargetAtTime(this.s.master, this.ctx.currentTime, 0.02);
     for (const p of this.peers.values()) this.applyPeer(p);
+    if (this.scr) this.scr.gain.gain.setTargetAtTime(this.s.screen, this.ctx.currentTime, 0.05);
   }
 
   applyPeer(p) {
@@ -169,6 +170,54 @@ export class SpatialAudio {
     const p = { id, el, stream, src, an, buf: new Float32Array(an.fftSize), panner, spatialGain, flatGain, out, send };
     this.peers.set(id, p);
     this.applyPeer(p);
+  }
+
+
+  /** Play a shared screen's sound from the screen itself (pos = its centre, nrm = the way it faces). */
+  setScreenAudio(stream, pos, nrm) {
+    this.clearScreenAudio();
+    if (!this.ctx || !stream || !stream.getAudioTracks().length) return;
+    const ctx = this.ctx;
+    const el = new Audio(); // Chrome needs the stream attached to an element before Web Audio gets its sound
+    el.muted = true;
+    el.srcObject = stream;
+    el.play().catch(() => {});
+    const src = ctx.createMediaStreamSource(stream);
+    const panner = ctx.createPanner();
+    panner.panningModel = 'HRTF';
+    panner.distanceModel = 'inverse';
+    panner.refDistance = 2;
+    panner.rolloffFactor = 0.6;
+    panner.maxDistance = 100;
+    if (panner.positionX) {
+      panner.positionX.value = pos.x; panner.positionY.value = pos.y; panner.positionZ.value = pos.z;
+      panner.orientationX.value = nrm.x; panner.orientationY.value = nrm.y; panner.orientationZ.value = nrm.z;
+    } else {
+      panner.setPosition(pos.x, pos.y, pos.z);
+      panner.setOrientation(nrm.x, nrm.y, nrm.z);
+    }
+    panner.coneInnerAngle = 140;
+    panner.coneOuterAngle = 300;
+    panner.coneOuterGain = 0.6;
+    const gain = ctx.createGain();
+    gain.gain.value = this.s.screen;
+    src.connect(panner);
+    panner.connect(gain);
+    gain.connect(this.master);
+    this.scr = { el, src, panner, gain };
+  }
+
+  clearScreenAudio() {
+    const p = this.scr;
+    if (!p) return;
+    try {
+      p.src.disconnect();
+      p.panner.disconnect();
+      p.gain.disconnect();
+    } catch {}
+    p.el.pause();
+    p.el.srcObject = null;
+    this.scr = null;
   }
 
   removePeer(id) {

@@ -23,6 +23,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
   width: min(420px, calc(100vw - 32px)); padding: 24px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
   backdrop-filter: blur(8px);
+  max-height: calc(100vh - 24px); overflow-y: auto;
 }
 .card h1 { margin: 0 0 4px; font-size: 22px; }
 label { display: block; margin: 14px 0 6px; font-size: 13px; color: var(--dim); }
@@ -91,3 +92,27 @@ button.toggle.off { background: #4a1f25; border-color: var(--bad); color: #ffd6d
   .hint { display: none; }
   .people { bottom: 64px; }
 }
+
+.avatarBox { margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
+.avatarBox input[type=file] { width: 100%; font-size: 13px; }
+#avatarStatus { margin-top: 6px; }
+#avatarStatus ul { margin: 4px 0 0; padding-left: 18px; }
+#avatarStatus .okmsg { color: #7fd99a; }
+#avatarStatus .badmsg { color: #ff8a8a; }
+.linkish { background: none; border: 0; padding: 4px 0; color: #8fb8ff; text-decoration: underline; cursor: pointer; font-size: 12px; }
+
+#camPreview { display: block; width: 160px; height: 120px; margin-top: 8px; border-radius: 8px; background: #000; object-fit: cover; transform: scaleX(-1); }
+#camStatus.err { color: #ff8a8a; }
+#vids { position: fixed; left: 0; bottom: 0; width: 2px; height: 2px; overflow: hidden; opacity: 0; pointer-events: none; }
+
+#avatarPreview { display: block; width: 220px; height: 260px; margin-top: 8px; border-radius: 10px; background: radial-gradient(circle at 50% 35%, #2a3342, #141a24); }
+
+.perf { position: fixed; left: 8px; bottom: 8px; padding: 3px 8px; border-radius: 6px; background: rgba(0,0,0,0.55); color: #9fe3b0; font: 12px/1.3 ui-monospace, Consolas, monospace; pointer-events: none; z-index: 5; }
+
+/* Amiga (emu/amiga-session.js) */
+.amiga-dlg { max-width: 30rem; border: 1px solid var(--line, #2a3342); border-radius: 12px; background: #11151c; color: inherit; padding: 1.25rem; }
+.amiga-dlg::backdrop { background: rgba(0, 0, 0, 0.6); }
+.amiga-dlg label { display: block; margin: 0.6rem 0; }
+.amiga-dlg input, .amiga-dlg select { display: block; width: 100%; margin-top: 0.25rem; }
+.amiga-dlg .row { display: flex; gap: 0.5rem; margin-top: 1rem; }
+.amiga-bar { position: fixed; left: 50%; bottom: 0.75rem; transform: translateX(-50%); max-width: min(92vw, 52rem); padding: 0.4rem 0.8rem; border-radius: 999px; background: rgba(17, 21, 28, 0.9); border: 1px solid #2a3342; font-size: 0.85rem; text-align: center; pointer-events: none; }

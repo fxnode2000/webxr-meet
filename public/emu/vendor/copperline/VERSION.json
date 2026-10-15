@@ -1,0 +1,17 @@
+{
+  "project": "Copperline",
+  "tag": "v1.0.0",
+  "commit": "1a284cde0ff5ff6e460e906dbc98cf5b903e7c87",
+  "source": "https://github.com/CopperlineHQ/Copperline",
+  "license": "GPL-3.0-or-later",
+  "wasmBindgen": "0.2.127",
+  "wasmOpt": false,
+  "builtAt": "2026-10-15T11:21:23.089Z",
+  "sha256": {
+    "pkg/copperline_web.js": "0e6e738a029579f4e79f00f7635b9b019ae508b328fc393d1058afd57eeea944",
+    "pkg/copperline_web_bg.wasm": "7f576988feed201b4c84421da05b796786bd47b65b4c6f343d5181ec9c15089b",
+    "audio-worklet.js": "4429d5a0c6470e6bfbea85d7a29c523f5adecfa331c8c7ec22dd3c7db4bbd013",
+    "aros/aros-amiga-m68k-rom.bin": "e3b4f5ea14db1dd1dcf254dd0d984bd3d05172f66fdacd0172f8bd073927bbbb",
+    "aros/aros-amiga-m68k-ext.bin": "f489a46e226448173abb4a1b2f1bdd2d1ab19d2b22220e4aa51f0fdaaba3eac4"
+  }
+}

@@ -1,2 +1,5 @@
 node_modules/
 .certs/
+logs/
+.emu-build/
+public/emu/vendor/ejs/

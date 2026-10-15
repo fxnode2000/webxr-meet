@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 
@@ -20,12 +21,21 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const THREE_DIR = path.join(__dirname, 'node_modules', 'three');
 
 const USE_HTTP = process.env.HTTP === '1' || process.argv.includes('--http');
+// Profiling (local testing only): npm run profile. Clients post their measurements here and the server
+// writes them, with its own load figures, to ./logs as JSON lines. Off unless asked for.
+const PROFILE = process.env.PROFILE === '1' || process.argv.includes('--profile');
+const LOG_DIR = path.join(__dirname, 'logs');
 const PORT = Number(process.env.PORT) || (USE_HTTP ? 8080 : 8443);
 
 const MAX_PEERS = 3;
 const MAX_ROOMS = 200;
 const PIN_MAX_FAILS = 5;
 const PIN_LOCK_MS = 2 * 60 * 1000;
+// A headset taken off freezes the page for a while. Be patient with silent sockets, and keep an emptied room
+// open briefly so the people who dropped out can come straight back to the same link.
+const HEARTBEAT_MS = Number(process.env.HEARTBEAT_MS) || 15000;
+const HEARTBEAT_MISSES = Number(process.env.HEARTBEAT_MISSES) || 4;
+const ROOM_GRACE_MS = process.env.ROOM_GRACE_MS !== undefined ? Number(process.env.ROOM_GRACE_MS) : 2 * 60 * 1000;
 const MSG_LIMIT_PER_SEC = 400;
 
 const MIME = {
@@ -39,6 +49,7 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.map': 'application/json',
   '.glb': 'model/gltf-binary',
+  '.wasm': 'application/wasm',
 };
 
 // ---------------------------------------------------------------- rooms
@@ -99,6 +110,7 @@ function addPeer(room, ws, name) {
     ws,
   };
   room.peers.set(peer.id, peer);
+  room.emptyAt = 0;
   ws.peerId = peer.id;
   ws.roomId = room.id;
   return peer;
@@ -207,8 +219,12 @@ function leave(ws) {
   ws.roomId = null;
   console.log(`[room ${room.id}] ${peer.name} left (${room.peers.size}/${MAX_PEERS})`);
   if (room.peers.size === 0) {
-    rooms.delete(room.id);
-    console.log(`[room ${room.id}] closed (empty)`);
+    if (ROOM_GRACE_MS > 0) {
+      room.emptyAt = Date.now(); // swept by the heartbeat timer once the grace period is over
+    } else {
+      rooms.delete(room.id);
+      console.log(`[room ${room.id}] closed (empty)`);
+    }
   } else {
     broadcast(room, { type: 'peer-left', id: peer.id });
   }
@@ -263,7 +279,15 @@ function requestHandler(req, res) {
     return res.end('Bad request');
   }
 
-  if (pathname === '/api/ice') return json(res, 200, { iceServers: iceServers() });
+  if (pathname === '/api/ice') return json(res, 200, { iceServers: iceServers(), profile: PROFILE });
+
+  if (pathname === '/api/log') {
+    if (!PROFILE || req.method !== 'POST') {
+      res.writeHead(404);
+      return res.end('Not found');
+    }
+    return receiveLog(req, res, new URL(req.url, 'http://localhost').searchParams.get('s'));
+  }
 
   if (pathname.startsWith('/api/room/')) {
     const id = pathname.slice('/api/room/'.length).toLowerCase();
@@ -293,6 +317,89 @@ function requestHandler(req, res) {
     return res.end('Not found');
   }
   serveFile(res, file);
+}
+
+// ---------------------------------------------------------------- profiling
+
+const logFiles = new Map(); // client session id -> file path
+const stamp = () => new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+function appendLog(file, text) {
+  fs.appendFile(file, text.endsWith('\n') ? text : text + '\n', (e) => {
+    if (e) console.warn('log write failed:', e.message);
+  });
+}
+
+function receiveLog(req, res, sid) {
+  if (!/^[a-z0-9]{6,24}$/.test(sid || '')) {
+    res.writeHead(400);
+    return res.end('bad session');
+  }
+  const chunks = [];
+  let size = 0;
+  req.on('data', (c) => {
+    size += c.length;
+    if (size > 512 * 1024) {
+      res.writeHead(413);
+      res.end();
+      req.destroy();
+    } else {
+      chunks.push(c);
+    }
+  });
+  req.on('end', () => {
+    if (res.writableEnded) return;
+    let file = logFiles.get(sid);
+    if (!file) {
+      fs.mkdirSync(LOG_DIR, { recursive: true });
+      file = path.join(LOG_DIR, `client_${stamp()}_${sid}.jsonl`);
+      logFiles.set(sid, file);
+      console.log(`  profiling: new client log ${path.basename(file)}`);
+    }
+    appendLog(file, Buffer.concat(chunks).toString('utf8'));
+    res.writeHead(204);
+    res.end();
+  });
+}
+
+const traffic = { inMsgs: 0, inBytes: 0, outMsgs: 0, outBytes: 0, types: {} };
+
+function startServerProfiler() {
+  fs.mkdirSync(LOG_DIR, { recursive: true });
+  const file = path.join(LOG_DIR, `server_${stamp()}.jsonl`);
+  const lag = monitorEventLoopDelay({ resolution: 10 });
+  lag.enable();
+  let lastCpu = process.cpuUsage();
+  let lastT = process.hrtime.bigint();
+  const write = (o) => appendLog(file, JSON.stringify({ t: Date.now(), ...o }));
+  write({ k: 'server-start', node: process.version, platform: process.platform, cpus: os.cpus().length, port: PORT });
+  setInterval(() => {
+    const now = process.hrtime.bigint();
+    const cpu = process.cpuUsage(lastCpu);
+    const wallUs = Number(now - lastT) / 1000;
+    lastCpu = process.cpuUsage();
+    lastT = now;
+    const mem = process.memoryUsage();
+    write({
+      k: 'server',
+      cpuPct: +(((cpu.user + cpu.system) / wallUs) * 100).toFixed(1),
+      loopMeanMs: +(lag.mean / 1e6).toFixed(2),
+      loopP99Ms: +(lag.percentile(99) / 1e6).toFixed(2),
+      loopMaxMs: +(lag.max / 1e6).toFixed(2),
+      rssMB: +(mem.rss / 1048576).toFixed(1),
+      heapMB: +(mem.heapUsed / 1048576).toFixed(1),
+      sockets: wss.clients.size,
+      rooms: rooms.size,
+      inPerSec: +(traffic.inMsgs / 5).toFixed(1),
+      inKBps: +(traffic.inBytes / 5 / 1024).toFixed(1),
+      outPerSec: +(traffic.outMsgs / 5).toFixed(1),
+      outKBps: +(traffic.outBytes / 5 / 1024).toFixed(1),
+      types: traffic.types,
+    });
+    lag.reset();
+    traffic.inMsgs = traffic.inBytes = traffic.outMsgs = traffic.outBytes = 0;
+    traffic.types = {};
+  }, 5000).unref();
 }
 
 // ---------------------------------------------------------------- tls
@@ -365,6 +472,15 @@ wss.on('connection', (ws) => {
   const reset = setInterval(() => (count = 0), 1000);
 
   ws.on('pong', () => (ws.isAlive = true));
+  if (PROFILE) {
+    const send = ws.send.bind(ws);
+    ws.send = (d, ...a) => {
+      traffic.outMsgs++;
+      traffic.outBytes += d.length;
+      return send(d, ...a);
+    };
+  }
+
   ws.on('message', (data) => {
     if (++count > MSG_LIMIT_PER_SEC) return; // flood guard
     let msg;
@@ -372,6 +488,11 @@ wss.on('connection', (ws) => {
       msg = JSON.parse(data.toString());
     } catch {
       return;
+    }
+    if (PROFILE) {
+      traffic.inMsgs++;
+      traffic.inBytes += data.length;
+      traffic.types[msg.type] = (traffic.types[msg.type] || 0) + 1;
     }
     handleMessage(ws, msg);
   });
@@ -382,17 +503,24 @@ wss.on('connection', (ws) => {
   ws.on('error', () => {});
 });
 
-// Drop half-dead sockets (e.g. a headset taken off mid-session).
+// Drop half-dead sockets (e.g. a headset taken off mid-session), and close rooms that stayed empty.
 const heartbeat = setInterval(() => {
   for (const ws of wss.clients) {
-    if (!ws.isAlive) {
+    if ((ws.missed = ws.isAlive ? 0 : (ws.missed || 0) + 1) >= HEARTBEAT_MISSES) {
       ws.terminate();
       continue;
     }
     ws.isAlive = false;
     ws.ping();
   }
-}, 15000);
+  const now = Date.now();
+  for (const room of rooms.values()) {
+    if (room.peers.size === 0 && room.emptyAt && now - room.emptyAt >= ROOM_GRACE_MS) {
+      rooms.delete(room.id);
+      console.log(`[room ${room.id}] closed (empty)`);
+    }
+  }
+}, HEARTBEAT_MS);
 wss.on('close', () => clearInterval(heartbeat));
 
 server.listen(PORT, '0.0.0.0', () => {
@@ -401,5 +529,9 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  Desktop:  ${scheme}://localhost:${PORT}`);
   for (const ip of lanAddresses()) console.log(`  Quest:    ${scheme}://${ip}:${PORT}`);
   if (!USE_HTTP) console.log('  (accept the certificate warning once on each device)');
+  if (PROFILE) {
+    console.log(`  PROFILING is on: logs are written to ${LOG_DIR}`);
+    startServerProfiler();
+  }
   console.log('');
 });

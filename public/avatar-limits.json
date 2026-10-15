@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "parts": [
+    "Head",
+    "Torso",
+    "HandL",
+    "HandR"
+  ],
+  "spec": {
+    "Head": {
+      "maxTris": 1000,
+      "size": [
+        0.15,
+        0.4
+      ],
+      "pivotTol": 0.04
+    },
+    "Torso": {
+      "maxTris": 800,
+      "size": [
+        0.25,
+        0.9
+      ],
+      "pivotTol": 0.12
+    },
+    "HandL": {
+      "maxTris": 300,
+      "size": [
+        0.04,
+        0.25
+      ],
+      "pivotTol": 0.06
+    },
+    "HandR": {
+      "maxTris": 300,
+      "size": [
+        0.04,
+        0.25
+      ],
+      "pivotTol": 0.06
+    }
+  },
+  "totalTris": 2400,
+  "maxMaterials": 2,
+  "maxTextures": 2,
+  "maxTexPx": 512,
+  "maxFileBytes": 1000000
+}

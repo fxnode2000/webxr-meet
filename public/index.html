@@ -29,6 +29,27 @@
       <input id="joinPin" inputmode="numeric" maxlength="4" placeholder="4 digits">
     </div>
 
+    <div id="camBox" class="avatarBox" hidden>
+      <label class="check"><input type="checkbox" id="useCam"> Show my webcam as my head <span class="dim">(desktop only)</span></label>
+      <video id="camPreview" muted playsinline autoplay hidden></video>
+      <div id="camStatus" class="small dim" role="status"></div>
+    </div>
+
+    <div id="avatarBox" class="avatarBox">
+      <label for="avatarFile">Your avatar <span class="dim">(optional .glb)</span></label>
+      <input id="avatarFile" type="file" accept=".glb,model/gltf-binary">
+      <canvas id="avatarPreview" width="220" height="260" hidden aria-label="Preview of your avatar"></canvas>
+      <div id="avatarStatus" class="small" role="status"></div>
+      <button id="avatarClear" type="button" class="linkish" hidden>Use the default avatar</button>
+      <p class="dim small">Make one with the <a href="/avatar-kit/avatar_template.blend" download>Blender template</a>
+        (also <a href="/avatar-kit/avatar_kit.py" download>avatar_kit.py</a> and <a href="/avatar-kit/README.txt" target="_blank" rel="noopener">instructions</a>).
+        The file is checked in your browser and shared only with the others in the room.</p>
+    </div>
+
+    <div id="vrBox" class="avatarBox" hidden>
+      <label class="check"><input type="checkbox" id="autoVr"> Go straight into VR after joining</label>
+    </div>
+
     <button id="go" class="primary">Create room</button>
     <p id="lobbyErr" class="err" role="alert"></p>
     <p class="dim small">You will be asked to allow your microphone. Headphones are recommended on a desktop.</p>
@@ -40,8 +61,43 @@
       <input id="inviteLink" readonly aria-label="Invite link">
       <button id="copyLink">Copy link</button>
       <button id="muteBtn" class="toggle">Mic on (M)</button>
+      <button id="camBtn" class="toggle off" hidden>Camera off</button>
+      <button id="shareBtn" class="toggle off" hidden>Share tab</button>
+      <button id="amigaBtn" class="toggle off" hidden>Amiga</button>
+      <button id="arcadeBtn" class="toggle off" hidden>Arcade</button>
+      <button id="playBtn" class="toggle off" hidden>Play</button>
       <button id="vrBtn" class="primary" hidden>Enter VR</button>
     </header>
+
+    <dialog id="amigaDlg" class="amiga-dlg">
+      <form method="dialog" id="amigaForm">
+        <h2>Run an Amiga in the room</h2>
+        <p class="dim small">The Amiga runs in your browser and everyone sees and hears it on the kitchen TV. Up to two friends can join on joysticks. You keep the keyboard.</p>
+        <label>Disk (.adf, .adz, .dms) <input id="amigaDisk" type="file" accept=".adf,.adz,.dms"></label>
+        <label>Model <select id="amigaModel"><option value="A500">A500</option><option value="A1200">A1200</option></select></label>
+        <label>Kickstart ROM (optional, your own file) <input id="amigaKick" type="file"></label>
+        <p class="dim small">Without a Kickstart file the free AROS replacement is used. It runs many games but not all. Floppy disk images only. Use disks you own or that are freely distributable.</p>
+        <p id="amigaErr" class="badmsg" hidden></p>
+        <div class="row"><button id="amigaGo" type="button" class="primary">Start</button> <button value="cancel">Cancel</button></div>
+      </form>
+    </dialog>
+    <dialog id="arcadeDlg" class="amiga-dlg">
+      <form method="dialog" id="arcadeForm">
+        <h2>Run an arcade game in the room</h2>
+        <p class="dim small">The game runs in your browser (you are player 1, on the keyboard) and everyone sees and hears it on the kitchen TV. Up to two friends can join as players 2 and 3 with a gamepad, keyboard or VR controllers. Keep this tab visible while the game runs.</p>
+        <label>Game (a .zip, left zipped) <input id="arcadeRom" type="file" accept=".zip"></label>
+        <label>Emulator
+          <select id="arcadeCore">
+            <option value="mame2003_plus">MAME 2003-Plus: about 5,000 classic games (try this first)</option>
+            <option value="fbneo">FinalBurn Neo: Neo Geo, Capcom and Konami boards</option>
+          </select>
+        </label>
+        <p class="dim small">Games are not included. Use ROMs you own or that are freely distributable. The zip has to match the emulator's version of the game; if it does not start, try the other emulator. Controls: arrows, Z X C and A S D for the buttons, 1 = Start, 5 = insert coin.</p>
+        <p id="arcadeErr" class="badmsg" hidden></p>
+        <div class="row"><button id="arcadeGo" type="button" class="primary">Start</button> <button value="cancel">Cancel</button></div>
+      </form>
+    </dialog>
+    <div id="amigaBar" class="amiga-bar" hidden></div>
 
     <section id="people" class="people"></section>
 
@@ -54,13 +110,25 @@
       <label>Distance falloff <input type="range" data-key="rolloff" min="0" max="3" step="0.1"><output></output></label>
       <label>Full-volume radius (m) <input type="range" data-key="refDistance" min="0.5" max="6" step="0.1"><output></output></label>
       <label>Room reverb <input type="range" data-key="reverb" min="0" max="1" step="0.05"><output></output></label>
+      <label>Shared screen volume <input type="range" data-key="screen" min="0" max="1.5" step="0.05"><output></output></label>
       <label>Voice directivity <input type="range" data-key="directivity" min="0" max="1" step="0.05"><output></output></label>
+      <div id="stressBox" hidden>
+        <label>Test: VR render resolution (next Enter VR)
+          <select id="xrScale">
+            <option value="1">1.0 (normal)</option><option value="1.2">1.2</option><option value="1.4">1.4</option>
+            <option value="1.6">1.6</option><option value="1.8">1.8</option><option value="2">2.0</option>
+          </select></label>
+        <label>Test: VR refresh rate
+          <select id="xrHz"><option value="0">Headset default</option><option value="72">72 Hz</option><option value="90">90 Hz</option><option value="120">120 Hz</option></select></label>
+      </div>
     </details>
 
     <div id="hint" class="hint">Click the scene to look around · WASD to move · Q/E to turn · M to mute</div>
     <div id="banner" class="banner" hidden></div>
   </div>
 
+  <div id="perf" class="perf" hidden></div>
+  <div id="vids" aria-hidden="true"></div>
   <script type="module" src="/app.js"></script>
 </body>
 </html>
